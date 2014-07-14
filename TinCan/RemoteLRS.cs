@@ -94,6 +94,7 @@ namespace TinCan
                     content = ReadFully(stream, (int)webResp.ContentLength);
                 }
             }
+
         }
 
         private MyHTTPResponse MakeSyncRequest(MyHTTPRequest req)
@@ -193,6 +194,8 @@ namespace TinCan
                 }
                 resp.ex = ex;
             }
+
+
 
             return resp;
         }
@@ -427,7 +430,9 @@ namespace TinCan
                 }
 
                 var ids = JArray.Parse(Encoding.UTF8.GetString(res.content));
+
                 statement.id = new Guid((String)ids[0]);
+
             }
             else {
                 if (res.status != HttpStatusCode.NoContent)
@@ -472,7 +477,9 @@ namespace TinCan
             var ids = JArray.Parse(Encoding.UTF8.GetString(res.content));
             for (int i = 0; i < ids.Count; i++)
             {
+
                 statements[i].id = new Guid((String)ids[i]);
+
             }
 
             r.success = true;
