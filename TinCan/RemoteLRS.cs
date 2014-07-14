@@ -32,6 +32,14 @@ namespace TinCan
         public String auth { get; set; }
         public Dictionary<String, String> extended { get; set; }
 
+        public delegate MyHTTPResponse MakeSyncRequestDelegate(
+            MyHTTPRequest req,
+            string endpoint,
+            TCAPIVersion version,
+            string auth);
+
+        private MakeSyncRequestDelegate MakeSyncDelegate;
+
         public void SetAuth(String username, String password)
         {
             auth = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(username + ":" + password));
@@ -47,7 +55,14 @@ namespace TinCan
         public RemoteLRS(String endpoint, TCAPIVersion version, String username, String password) : this(new Uri(endpoint), version, username, password) { }
         public RemoteLRS(String endpoint, String username, String password) : this(endpoint, TCAPIVersion.latest(), username, password) { }
 
-        private class MyHTTPRequest
+        public RemoteLRS(Uri endpoint, TCAPIVersion version, String username, String password, MakeSyncRequestDelegate makeSyncRequest) : this(endpoint, version, username, password)
+        {
+            this.MakeSyncDelegate = makeSyncRequest;
+        }
+        public RemoteLRS(String endpoint, TCAPIVersion version, String username, String password, MakeSyncRequestDelegate makeSyncRequest) : this(new Uri(endpoint), version, username, password, makeSyncRequest) { }
+        public RemoteLRS(String endpoint, String username, String password, MakeSyncRequestDelegate makeSyncRequest) : this(endpoint, TCAPIVersion.latest(), username, password, makeSyncRequest) { }
+
+        public class MyHTTPRequest
         {
             public String method { get; set; }
             public String resource { get; set; }
@@ -57,7 +72,7 @@ namespace TinCan
             public byte[] content { get; set; }
         }
 
-        private class MyHTTPResponse
+        public class MyHTTPResponse
         {
             public HttpStatusCode status { get; set; }
             public String contentType { get; set; }
@@ -79,6 +94,7 @@ namespace TinCan
                     content = ReadFully(stream, (int)webResp.ContentLength);
                 }
             }
+
         }
 
         private MyHTTPResponse MakeSyncRequest(MyHTTPRequest req)
@@ -115,6 +131,10 @@ namespace TinCan
             }
 
             // TODO: handle special properties we recognize, such as content type, modified since, etc.
+
+            if (MakeSyncDelegate != null)
+                return MakeSyncDelegate(req, url, version, auth);
+
             var webReq = (HttpWebRequest)WebRequest.Create(url);
             webReq.Method = req.method;
 
@@ -175,6 +195,8 @@ namespace TinCan
                 resp.ex = ex;
             }
 
+
+
             return resp;
         }
 
@@ -187,7 +209,7 @@ namespace TinCan
         /// </summary>
         /// <param name="stream">The stream to read data from</param>
         /// <param name="initialLength">The initial buffer length</param>
-        private static byte[] ReadFully(Stream stream, int initialLength)
+        public static byte[] ReadFully(Stream stream, int initialLength)
         {
             // If we've been passed an unhelpful initial length, just
             // use 32K.
@@ -408,7 +430,9 @@ namespace TinCan
                 }
 
                 var ids = JArray.Parse(Encoding.UTF8.GetString(res.content));
+
                 statement.id = new Guid((String)ids[0]);
+
             }
             else {
                 if (res.status != HttpStatusCode.NoContent)
@@ -453,7 +477,9 @@ namespace TinCan
             var ids = JArray.Parse(Encoding.UTF8.GetString(res.content));
             for (int i = 0; i < ids.Count; i++)
             {
+
                 statements[i].id = new Guid((String)ids[i]);
+
             }
 
             r.success = true;
